@@ -3,7 +3,18 @@ import psycopg2
 import psycopg2.extras
 from datetime import date
 
+# -----------------------------
+# 1. Database connection function
+# -----------------------------
+def get_connection():
+    return psycopg2.connect(
+        st.secrets["DB_URL"],
+        cursor_factory=psycopg2.extras.RealDictCursor
+    )
 
+# -----------------------------
+# 2. Initialize DB (tables)
+# -----------------------------
 def initialize_db():
     conn = get_connection()
     cur = conn.cursor()
@@ -31,10 +42,11 @@ def initialize_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS camps (
             id SERIAL PRIMARY KEY,
-            name TEXT,
-            location TEXT,
+            camp_name TEXT,
+            description TEXT,
             start_date DATE,
             end_date DATE,
+            capacity INT,
             instructor_id INT REFERENCES instructors(id)
         );
     """)
@@ -51,12 +63,17 @@ def initialize_db():
     conn.commit()
     conn.close()
 
+# Call AFTER get_connection is defined
 initialize_db()
+
+# -----------------------------
+# 3. Streamlit page config
+# -----------------------------
 st.set_page_config(page_title="Camp Dashboard", layout="wide")
 
-def get_connection():
-    return psycopg2.connect(st.secrets["DB_URL"], cursor_factory=psycopg2.extras.RealDictCursor)
-
+# -----------------------------
+# 4. Dashboard helper functions
+# -----------------------------
 def get_total_campers():
     conn = get_connection()
     cur = conn.cursor()
@@ -105,6 +122,9 @@ def get_upcoming_camps():
     conn.close()
     return rows
 
+# -----------------------------
+# 5. Dashboard UI
+# -----------------------------
 st.title("Camp Management Dashboard")
 st.markdown("Welcome to the dashboard. Here is a quick overview of your camp program.")
 

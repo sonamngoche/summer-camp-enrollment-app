@@ -32,6 +32,9 @@ Search / Filter Page — Allows users to search campers by last name or filter c
 • 	Instructor phone: digits only if provided
 • 	Camp name: cannot be blank
 • 	Instructor selection: required
+
+#linktostreamlit
+https://summer-camp-enrollment-app-f5wkqmexwzpccmdgf5hrde.streamlit.app/
 • 	Start and end dates: start_date must be before end_date
 • 	Capacity: must be a positive integer
 • 	Enrollment: camper and camp selections cannot be blank

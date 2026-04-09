@@ -2,6 +2,15 @@ import streamlit as st
 import psycopg2
 import re
 
+def validate_instructor(first_name, last_name, email, phone):
+    if not first_name or not last_name:
+        return "First and last name are required."
+    if "@" not in email:
+        return "Invalid email format."
+    if phone and not phone.isdigit():
+        return "Phone number must contain digits only."
+    return None
+    
 def get_db_connection():
     return psycopg2.connect(st.secrets["DB_URL"])
 

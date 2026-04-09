@@ -19,6 +19,9 @@ def validate_camper_data(first_name, last_name, age, guardian_email, guardian_ph
 
 st.title("Campers Management")
 
+# -----------------------------
+# ADD CAMPER FORM
+# -----------------------------
 with st.form("add_camper_form"):
     st.header("Add Camper")
     first_name = st.text_input("First Name")
@@ -45,6 +48,9 @@ with st.form("add_camper_form"):
             except Exception as e:
                 st.error(f"Error adding camper: {e}")
 
+# -----------------------------
+# DISPLAY CAMPERS
+# -----------------------------
 st.header("Current Campers")
 
 with get_db_connection() as conn:
@@ -60,43 +66,88 @@ if campers:
         with col1:
             st.write(f"{first_name} {last_name}, Age: {age}, Email: {guardian_email}, Phone: {guardian_phone}")
 
+        # -----------------------------
+        # EDIT BUTTON
+        # -----------------------------
         with col2:
             if st.button("Edit", key=f"edit_{camper_id}"):
-                with st.form(f"edit_camper_form_{camper_id}", clear_on_submit=True):
-                    st.subheader("Edit Camper")
-                    edited_first = st.text_input("First Name", value=first_name)
-                    edited_last = st.text_input("Last Name", value=last_name)
-                    edited_age = st.number_input("Age", min_value=1, value=age)
-                    edited_email = st.text_input("Guardian Email", value=guardian_email)
-                    edited_phone = st.text_input("Guardian Phone", value=guardian_phone)
+                st.session_state["edit_camper_id"] = camper_id
 
-                    if st.form_submit_button("Update Camper"):
-                        error = validate_camper_data(edited_first, edited_last, edited_age, edited_email, edited_phone)
-                        if error:
-                            st.error(error)
-                        else:
-                            try:
-                                with get_db_connection() as conn:
-                                    with conn.cursor() as cur:
-                                        cur.execute("""
-                                            UPDATE campers
-                                            SET first_name=%s, last_name=%s, age=%s, guardian_email=%s, guardian_phone=%s
-                                            WHERE id=%s
-                                        """, (edited_first, edited_last, edited_age, edited_email, edited_phone, camper_id))
-                                        conn.commit()
-                                st.success("Camper updated successfully!")
-                            except Exception as e:
-                                st.error(f"Error updating camper: {e}")
-
+            # -----------------------------
+            # DELETE BUTTON (with confirmation)
+            # -----------------------------
             if st.button("Delete", key=f"delete_{camper_id}"):
-                if st.confirm("Are you sure you want to delete this camper?"):
+                st.session_state["delete_camper_id"] = camper_id
+
+# -----------------------------
+# EDIT CAMPER FORM
+# -----------------------------
+if "edit_camper_id" in st.session_state:
+    camper_id = st.session_state["edit_camper_id"]
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT first_name, last_name, age, guardian_email, guardian_phone
+                FROM campers WHERE id = %s;
+            """, (camper_id,))
+            camper = cur.fetchone()
+
+    if camper:
+        first_name, last_name, age, guardian_email, guardian_phone = camper
+
+        st.subheader("Edit Camper")
+
+        with st.form(f"edit_camper_form_{camper_id}"):
+            edited_first = st.text_input("First Name", value=first_name)
+            edited_last = st.text_input("Last Name", value=last_name)
+            edited_age = st.number_input("Age", min_value=1, value=age)
+            edited_email = st.text_input("Guardian Email", value=guardian_email)
+            edited_phone = st.text_input("Guardian Phone", value=guardian_phone)
+
+            if st.form_submit_button("Update Camper"):
+                error = validate_camper_data(edited_first, edited_last, edited_age, edited_email, edited_phone)
+                if error:
+                    st.error(error)
+                else:
                     try:
                         with get_db_connection() as conn:
                             with conn.cursor() as cur:
-                                cur.execute("DELETE FROM campers WHERE id=%s", (camper_id,))
+                                cur.execute("""
+                                    UPDATE campers
+                                    SET first_name=%s, last_name=%s, age=%s, guardian_email=%s, guardian_phone=%s
+                                    WHERE id=%s
+                                """, (edited_first, edited_last, edited_age, edited_email, edited_phone, camper_id))
                                 conn.commit()
-                        st.success("Camper deleted successfully!")
+                        st.success("Camper updated successfully!")
+                        del st.session_state["edit_camper_id"]
+                        st.experimental_rerun()
                     except Exception as e:
-                        st.error(f"Error deleting camper: {e}")
+                        st.error(f"Error updating camper: {e}")
+
+# -----------------------------
+# DELETE CONFIRMATION
+# -----------------------------
+if "delete_camper_id" in st.session_state:
+    camper_id = st.session_state["delete_camper_id"]
+
+    st.warning("Are you sure you want to delete this camper? This action cannot be undone.")
+
+    colA, colB = st.columns(2)
+    if colA.button("Yes, delete"):
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM campers WHERE id=%s", (camper_id,))
+                    conn.commit()
+            st.success("Camper deleted successfully!")
+            del st.session_state["delete_camper_id"]
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Error deleting camper: {e}")
+
+    if colB.button("Cancel"):
+        del st.session_state["delete_camper_id"]
+        st.info("Deletion canceled.")
 else:
     st.info("No campers found.")

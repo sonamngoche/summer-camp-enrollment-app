@@ -117,7 +117,7 @@ with st.form("enroll_form"):
         else:
             add_enrollment(camper_id, selected_camp_id)
             st.success("Camper enrolled successfully!")
-            st.experimental_rerun()
+            st.rerun()   # FIXED
 
 # -----------------------------
 # SHOW CURRENT ENROLLMENTS
@@ -149,6 +149,6 @@ if enrollments:
             if st.button("Remove", key=f"remove_{e['enrollment_id']}"):
                 remove_enrollment(e["enrollment_id"])
                 st.success("Enrollment removed.")
-                st.experimental_rerun()
+                st.rerun()   # FIXED
 else:
     st.info("No campers enrolled in this camp yet.")

@@ -19,11 +19,15 @@ def validate_camp_data(camp_name, instructor_id, start_date, end_date, capacity)
 
 st.title("Camps Management")
 
+# -----------------------------
+# ADD CAMP FORM
+# -----------------------------
 with st.form("add_camp_form"):
     st.header("Add Camp")
     camp_name = st.text_input("Camp Name")
     description = st.text_area("Description")
 
+    # Load instructors
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, first_name || ' ' || last_name FROM instructors ORDER BY last_name")
@@ -53,9 +57,13 @@ with st.form("add_camp_form"):
                         """, (camp_name, description, instructor_id, start_date, end_date, capacity))
                         conn.commit()
                 st.success("Camp added successfully!")
+                st.experimental_rerun()
             except Exception as e:
                 st.error(f"Error adding camp: {e}")
 
+# -----------------------------
+# DISPLAY CAMPS
+# -----------------------------
 st.header("Current Camps")
 
 with get_db_connection() as conn:
@@ -80,48 +88,100 @@ if camps:
             st.write(f"**Dates:** {start_date} → {end_date} | **Capacity:** {capacity}")
 
         with col2:
+            # EDIT BUTTON
             if st.button("Edit", key=f"edit_{camp_id}"):
-                with st.form(f"edit_camp_form_{camp_id}", clear_on_submit=True):
-                    st.subheader("Edit Camp")
-                    edited_name = st.text_input("Camp Name", value=camp_name)
-                    edited_desc = st.text_area("Description", value=description)
+                st.session_state["edit_camp_id"] = camp_id
 
-                    instructor_label = st.selectbox("Instructor", list(instructor_options.keys()))
-                    edited_instructor_id = instructor_options[instructor_label]
-
-                    edited_start = st.date_input("Start Date", value=start_date)
-                    edited_end = st.date_input("End Date", value=end_date)
-                    edited_capacity = st.number_input("Capacity", min_value=1, value=capacity)
-
-                    if st.form_submit_button("Update Camp"):
-                        error = validate_camp_data(edited_name, edited_instructor_id, edited_start, edited_end, edited_capacity)
-                        if error:
-                            st.error(error)
-                        else:
-                            try:
-                                with get_db_connection() as conn:
-                                    with conn.cursor() as cur:
-                                        cur.execute("""
-                                            UPDATE camps
-                                            SET camp_name=%s, description=%s, instructor_id=%s,
-                                                start_date=%s, end_date=%s, capacity=%s
-                                            WHERE id=%s
-                                        """, (edited_name, edited_desc, edited_instructor_id,
-                                              edited_start, edited_end, edited_capacity, camp_id))
-                                        conn.commit()
-                                st.success("Camp updated successfully!")
-                            except Exception as e:
-                                st.error(f"Error updating camp: {e}")
-
+            # DELETE BUTTON
             if st.button("Delete", key=f"delete_{camp_id}"):
-                if st.confirm("Are you sure you want to delete this camp?"):
+                st.session_state["delete_camp_id"] = camp_id
+
+# -----------------------------
+# EDIT CAMP FORM
+# -----------------------------
+if "edit_camp_id" in st.session_state:
+    camp_id = st.session_state["edit_camp_id"]
+
+    # Load current camp data
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT camp_name, description, instructor_id, start_date, end_date, capacity
+                FROM camps WHERE id=%s
+            """, (camp_id,))
+            camp = cur.fetchone()
+
+    if camp:
+        camp_name, description, instructor_id, start_date, end_date, capacity = camp
+
+        st.subheader("Edit Camp")
+
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, first_name || ' ' || last_name FROM instructors ORDER BY last_name")
+                instructors = cur.fetchall()
+
+        instructor_options = {name: id for id, name in instructors}
+        current_instructor_name = [name for name, id in instructor_options.items() if id == instructor_id][0]
+
+        with st.form("edit_camp_form"):
+            edited_name = st.text_input("Camp Name", value=camp_name)
+            edited_desc = st.text_area("Description", value=description)
+
+            instructor_label = st.selectbox("Instructor", list(instructor_options.keys()), index=list(instructor_options.keys()).index(current_instructor_name))
+            edited_instructor_id = instructor_options[instructor_label]
+
+            edited_start = st.date_input("Start Date", value=start_date)
+            edited_end = st.date_input("End Date", value=end_date)
+            edited_capacity = st.number_input("Capacity", min_value=1, value=capacity)
+
+            if st.form_submit_button("Update Camp"):
+                error = validate_camp_data(edited_name, edited_instructor_id, edited_start, edited_end, edited_capacity)
+                if error:
+                    st.error(error)
+                else:
                     try:
                         with get_db_connection() as conn:
                             with conn.cursor() as cur:
-                                cur.execute("DELETE FROM camps WHERE id=%s", (camp_id,))
+                                cur.execute("""
+                                    UPDATE camps
+                                    SET camp_name=%s, description=%s, instructor_id=%s,
+                                        start_date=%s, end_date=%s, capacity=%s
+                                    WHERE id=%s
+                                """, (edited_name, edited_desc, edited_instructor_id,
+                                      edited_start, edited_end, edited_capacity, camp_id))
                                 conn.commit()
-                        st.success("Camp deleted successfully!")
+                        st.success("Camp updated successfully!")
+                        del st.session_state["edit_camp_id"]
+                        st.experimental_rerun()
                     except Exception as e:
-                        st.error(f"Error deleting camp: {e}")
+                        st.error(f"Error updating camp: {e}")
+
+# -----------------------------
+# DELETE CONFIRMATION
+# -----------------------------
+if "delete_camp_id" in st.session_state:
+    camp_id = st.session_state["delete_camp_id"]
+
+    st.warning("Are you sure you want to delete this camp? This action cannot be undone.")
+
+    colA, colB = st.columns(2)
+
+    if colA.button("Yes, delete camp"):
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM camps WHERE id=%s", (camp_id,))
+                    conn.commit()
+            st.success("Camp deleted successfully!")
+            del st.session_state["delete_camp_id"]
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Error deleting camp: {e}")
+
+    if colB.button("Cancel"):
+        del st.session_state["delete_camp_id"]
+        st.info("Deletion canceled.")
+
 else:
     st.info("No camps found.")

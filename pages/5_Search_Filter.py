@@ -76,4 +76,17 @@ st.subheader("Filter Camps by Date Range")
 col1, col2 = st.columns(2)
 
 with col1:
-    start_date = st.date_input("Start Date", value
+    start_date = st.date_input("Start Date", value=date.today())
+
+with col2:
+    end_date = st.date_input("End Date", value=date.today())
+
+if start_date > end_date:
+    st.error("Start date must be before end date.")
+else:
+    camps = filter_camps_by_date(start_date, end_date)
+    if camps:
+        st.write(f"Found **{len(camps)}** camps in this date range.")
+        st.table(camps)
+    else:
+        st.info("No camps found in this date range.")

@@ -30,18 +30,27 @@ with st.form("add_camp_form"):
     # Load instructors
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, first_name || ' ' || last_name FROM instructors ORDER BY last_name")
+            cur.execute("""
+                SELECT id, first_name || ' ' || last_name AS full_name
+                FROM instructors
+                ORDER BY last_name;
+            """)
             instructors = cur.fetchall()
 
-    instructor_options = {name: id for id, name in instructors}
-    instructor_label = st.selectbox("Instructor", list(instructor_options.keys()))
-    instructor_id = instructor_options[instructor_label]
+    if not instructors:
+        st.warning("No instructors found. Please add instructors first.")
+        st.form_submit_button("Add Camp", disabled=True)
+        submitted = False
+    else:
+        instructor_options = {name: id for id, name in instructors}
+        instructor_label = st.selectbox("Instructor", list(instructor_options.keys()))
+        instructor_id = instructor_options[instructor_label]
 
-    start_date = st.date_input("Start Date", min_value=date.today())
-    end_date = st.date_input("End Date", min_value=start_date)
-    capacity = st.number_input("Capacity", min_value=1, step=1)
+        start_date = st.date_input("Start Date", min_value=date.today())
+        end_date = st.date_input("End Date", min_value=start_date)
+        capacity = st.number_input("Capacity", min_value=1, step=1)
 
-    submitted = st.form_submit_button("Add Camp")
+        submitted = st.form_submit_button("Add Camp")
 
     if submitted:
         error = validate_camp_data(camp_name, instructor_id, start_date, end_date, capacity)
@@ -73,7 +82,7 @@ with get_db_connection() as conn:
                    start_date, end_date, capacity
             FROM camps
             LEFT JOIN instructors ON camps.instructor_id = instructors.id
-            ORDER BY start_date
+            ORDER BY start_date;
         """)
         camps = cur.fetchall()
 
@@ -83,18 +92,18 @@ if camps:
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.write(f"**{camp_name}** — {inst_first} {inst_last}")
+            st.write(f"**{camp_name}** — {inst_first or ''} {inst_last or ''}")
             st.write(description or "No description")
             st.write(f"**Dates:** {start_date} → {end_date} | **Capacity:** {capacity}")
 
         with col2:
-            # EDIT BUTTON
             if st.button("Edit", key=f"edit_{camp_id}"):
                 st.session_state["edit_camp_id"] = camp_id
 
-            # DELETE BUTTON
             if st.button("Delete", key=f"delete_{camp_id}"):
                 st.session_state["delete_camp_id"] = camp_id
+else:
+    st.info("No camps found.")
 
 # -----------------------------
 # EDIT CAMP FORM
@@ -102,7 +111,6 @@ if camps:
 if "edit_camp_id" in st.session_state:
     camp_id = st.session_state["edit_camp_id"]
 
-    # Load current camp data
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -118,7 +126,11 @@ if "edit_camp_id" in st.session_state:
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT id, first_name || ' ' || last_name FROM instructors ORDER BY last_name")
+                cur.execute("""
+                    SELECT id, first_name || ' ' || last_name AS full_name
+                    FROM instructors
+                    ORDER BY last_name;
+                """)
                 instructors = cur.fetchall()
 
         instructor_options = {name: id for id, name in instructors}
@@ -128,7 +140,11 @@ if "edit_camp_id" in st.session_state:
             edited_name = st.text_input("Camp Name", value=camp_name)
             edited_desc = st.text_area("Description", value=description)
 
-            instructor_label = st.selectbox("Instructor", list(instructor_options.keys()), index=list(instructor_options.keys()).index(current_instructor_name))
+            instructor_label = st.selectbox(
+                "Instructor",
+                list(instructor_options.keys()),
+                index=list(instructor_options.keys()).index(current_instructor_name)
+            )
             edited_instructor_id = instructor_options[instructor_label]
 
             edited_start = st.date_input("Start Date", value=start_date)
@@ -182,6 +198,3 @@ if "delete_camp_id" in st.session_state:
     if colB.button("Cancel"):
         del st.session_state["delete_camp_id"]
         st.info("Deletion canceled.")
-
-else:
-    st.info("No camps found.")

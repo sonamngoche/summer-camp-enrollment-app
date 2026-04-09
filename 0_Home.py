@@ -3,6 +3,55 @@ import psycopg2
 import psycopg2.extras
 from datetime import date
 
+
+def initialize_db():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS campers (
+            id SERIAL PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            age INT,
+            guardian_name TEXT,
+            guardian_phone TEXT
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS instructors (
+            id SERIAL PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            specialty TEXT
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS camps (
+            id SERIAL PRIMARY KEY,
+            name TEXT,
+            location TEXT,
+            start_date DATE,
+            end_date DATE,
+            instructor_id INT REFERENCES instructors(id)
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS camp_enrollments (
+            id SERIAL PRIMARY KEY,
+            camper_id INT REFERENCES campers(id),
+            camp_id INT REFERENCES camps(id),
+            UNIQUE(camper_id, camp_id)
+        );
+    """)
+
+    conn.commit()
+    conn.close()
+
+initialize_db()
 st.set_page_config(page_title="Camp Dashboard", layout="wide")
 
 def get_connection():

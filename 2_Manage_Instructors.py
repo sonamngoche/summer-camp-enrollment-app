@@ -15,6 +15,33 @@ def get_db_connection():
     return psycopg2.connect(st.secrets["DB_URL"])
 
 st.title("Instructors Management")
+with st.form("add_instructor_form"):
+    st.header("Add Instructor")
+    first_name = st.text_input("First Name")
+    last_name = st.text_input("Last Name")
+    email = st.text_input("Email")
+    phone = st.text_input("Phone")
+
+    submitted = st.form_submit_button("Add Instructor")
+
+    if submitted:
+        # CALL THE VALIDATION FUNCTION HERE
+        error = validate_instructor(first_name, last_name, email, phone)
+
+        if error:
+            st.error(error)
+        else:
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO instructors (first_name, last_name, email, phone)
+                            VALUES (%s, %s, %s, %s)
+                        """, (first_name, last_name, email, phone))
+                        conn.commit()
+                st.success("Instructor added successfully!")
+            except Exception as e:
+                st.error(f"Error adding instructor: {e}")
 
 # -----------------------------
 # DISPLAY INSTRUCTORS
